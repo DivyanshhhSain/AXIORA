@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AXIORA Chat</title>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --bg:       #0a0a0a;
+    --border:   #252525;
+    --text:     #f0f0f0;
+    --muted:    #777;
+    --user-bg:  #1c1c1c;
+    --input-bg: #131313;
+    --err:      #e05555;
+    --ok:       #4caf80;
+  }
+  html, body {
+    height: 100%; background: var(--bg);
+    font-family: 'Sora', sans-serif; color: var(--text);
+    overflow: hidden; -webkit-font-smoothing: antialiased;
+  }
+  body { display: flex; flex-direction: column; height: 100vh; }
+
+  /* ── LANDING ─────────────────────────── */
+  #landing { display: flex; flex-direction: column; align-items: center; justify-content: center; flex: 1; padding: 2rem; }
+  #landing.hidden { display: none; }
+  .brand { display: flex; align-items: center; gap: 14px; margin-bottom: 2.8rem; animation: fadeUp 0.5s ease both; }
+  .brand-icon { width: 46px; height: 46px; }
+  .brand-icon svg { width: 100%; height: 100%; }
+  .brand-name { font-size: 2.1rem; font-weight: 600; letter-spacing: -0.03em; color: #fff; }
+  .landing-input-box {
+    max-width: 680px; width: 100%; background: var(--input-bg);
+    border: 0.5px solid var(--border); border-radius: 30px;
+    display: flex; align-items: center; gap: 8px;
+    padding: 0.6rem 0.6rem 0.6rem 1.2rem;
+    transition: border-color 0.2s; animation: fadeUp 0.5s 0.1s ease both;
+  }
+  .landing-input-box:focus-within { border-color: #404040; }
+  #landing-input {
+    flex: 1; background: transparent; border: none; outline: none;
+    font-family: 'Sora', sans-serif; font-size: 0.94rem; color: var(--text); caret-color: #fff;
+  }
+  #landing-input::placeholder { color: var(--muted); }
+  .hint-text { margin-top: 1rem; font-size: 0.75rem; color: #2e2e2e; animation: fadeUp 0.5s 0.2s ease both; }
+
+  /* ── CHAT ────────────────────────────── */
+  #chat-view { display: none; flex-direction: column; flex: 1; overflow: hidden; }
+  #chat-view.active { display: flex; }
+
+  #messages {
+    flex: 1; overflow-y: auto;
+    padding: 2rem 1rem 0.5rem;
+    display: flex; flex-direction: column; gap: 1.6rem; scroll-behavior: smooth;
+  }
+  #messages::-webkit-scrollbar { width: 3px; }
+  #messages::-webkit-scrollbar-track { background: transparent; }
+  #messages::-webkit-scrollbar-thumb { background: #2a2a2a; border-radius: 2px; }
+
+  .msg { display: flex; flex-direction: column; max-width: 740px; width: 100%; margin: 0 auto; animation: msgIn 0.25s ease both; }
+  @keyframes msgIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+  .msg.user      { align-items: flex-end; }
+  .msg.assistant { align-items: flex-start; }
+
+  .msg-bubble {
+    padding: 0.75rem 1.05rem; border-radius: 18px;
+    font-size: 0.9rem; line-height: 1.72;
+    max-width: 80%; white-space: pre-wrap; word-break: break-word;
+  }
+  .msg.user .msg-bubble {
+    background: var(--user-bg); color: var(--text);
+    border-bottom-right-radius: 4px; border: 0.5px solid var(--border);
+  }
+  .msg.assistant .msg-bubble {
+    background: transparent; color: var(--text);
+    padding-left: 0; font-size: 0.94rem; max-width: 100%;
+  }
+
+  /* debug bubble */
+  .msg.debug .msg-bubble {
+    background: #1a1208; color: #c8a84b;
+    border: 0.5px solid #3a2e10; font-size: 0.75rem;
+    font-family: monospace; max-width: 100%; padding: 0.6rem 0.8rem;
+    border-radius: 10px; white-space: pre-wrap; word-break: break-all;
+  }
+
+  /* ── TYPING ──────────────────────────── */
+  .typing { display: flex; gap: 5px; align-items: center; padding: 4px 0; }
+  .typing span { width: 6px; height: 6px; background: #444; border-radius: 50%; animation: blink 1.3s infinite; }
+  .typing span:nth-child(2) { animation-delay: 0.2s; }
+  .typing span:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes blink { 0%,80%,100%{opacity:0.15} 40%{opacity:0.9} }
+
+  /* ── INPUT AREA ──────────────────────── */
+  #input-wrap { padding: 0.8rem 1rem 1.1rem; flex-shrink: 0; }
+  #status-bar {
+    max-width: 760px; margin: 0 auto;
+    font-size: 0.72rem; min-height: 18px;
+    padding: 0 0.2rem 0.3rem; text-align: center;
+  }
+  .input-box {
+    max-width: 760px; margin: 0 auto; background: var(--input-bg);
+    border: 0.5px solid var(--border); border-radius: 28px;
+    display: flex; align-items: flex-end; gap: 8px;
+    padding: 0.5rem 0.5rem 0.5rem 1.1rem; transition: border-color 0.2s;
+  }
+  .input-box:focus-within { border-color: #404040; }
+  #user-input {
+    flex: 1; background: transparent; border: none; outline: none;
+    font-family: 'Sora', sans-serif; font-size: 0.91rem; color: var(--text);
+    line-height: 1.55; resize: none; max-height: 130px; overflow-y: auto;
+    padding: 4px 0; caret-color: #fff;
+  }
+  #user-input::placeholder { color: var(--muted); }
+  #user-input::-webkit-scrollbar { width: 3px; }
+  #user-input::-webkit-scrollbar-thumb { background: #333; border-radius: 2px; }
+
+  /* ── SEND BUTTON ─────────────────────── */
+  .send-btn {
+    width: 38px; height: 38px; border-radius: 50%; border: none;
+    background: #fff; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    transition: background 0.18s, transform 0.1s;
+  }
+  .send-btn:hover:not(:disabled) { background: #ddd; }
+  .send-btn:active:not(:disabled) { transform: scale(0.93); }
+  .send-btn svg { width: 15px; height: 15px; pointer-events: none; }
+  .send-btn:disabled { background: #1e1e1e; cursor: not-allowed; }
+  .send-btn:disabled svg path { stroke: #444; }
+
+  .input-hint { text-align: center; font-size: 0.7rem; color: #2e2e2e; margin-top: 0.55rem; }
+
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+</style>
+</head>
+<body>
+
+<!-- LANDING -->
+<div id="landing">
+  <div class="brand">
+    <div class="brand-icon">
+      <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="24" cy="24" r="20" stroke="#fff" stroke-width="1.4"/>
+        <path d="M14 24C14 18 19 14 24 14C29 14 34 18 34 24" stroke="#fff" stroke-width="1.7" stroke-linecap="round" fill="none"/>
+        <path d="M18 32L30 16" stroke="#fff" stroke-width="1.9" stroke-linecap="round"/>
+        <circle cx="24" cy="24" r="2.8" fill="#fff"/>
+      </svg>
+    </div>
+    <span class="brand-name">AXIORA</span>
+  </div>
+  <div class="landing-input-box">
+    <input id="landing-input" type="text" placeholder="What do you want to know?" autocomplete="off" spellcheck="false"/>
+    <button class="send-btn" id="landing-send" aria-label="Send">
+      <svg viewBox="0 0 24 24" fill="none">
+        <path d="M5 12H19M13 6L19 12L13 18" stroke="#000" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </button>
+  </div>
+  <p class="hint-text">Powered by intelligence</p>
+</div>
+
+<!-- CHAT VIEW -->
+<div id="chat-view">
+  <div id="messages"></div>
+  <div id="input-wrap">
+    <div id="status-bar"></div>
+    <div class="input-box">
+      <textarea id="user-input" placeholder="Ask anything…" rows="1" spellcheck="true"></textarea>
+      <button class="send-btn" id="send-btn" disabled aria-label="Send">
+        <svg viewBox="0 0 24 24" fill="none">
+          <path d="M5 12H19M13 6L19 12L13 18" stroke="#000" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </button>
+    </div>
+    <p class="input-hint">AI can make mistakes — verify important information.</p>
+  </div>
+</div>
+
+<script>
+/* ─────────────────────────────────────────
+   CONFIG — Use Production URL
+───────────────────────────────────────── */
+const WEBHOOK    = "https://n8n-production-a1a2.up.railway.app/webhook/AXIORA";
+const TIMEOUT_MS = 120000; 
+const GREETING   = "How can I help you today? I'm your smart assistant.";
+
+/* ─────────────────────────────────────────
+   STATE & DOM
+───────────────────────────────────────── */
+let isLoading = false, initialized = false, currentAbort = null, typingId = null;
+const $land = document.getElementById('landing'), $chat = document.getElementById('chat-view');
+const $msgs = document.getElementById('messages'), $input = document.getElementById('user-input');
+const $sendBtn = document.getElementById('send-btn'), $lInput = document.getElementById('landing-input');
+const $lSend = document.getElementById('landing-send'), $status = document.getElementById('status-bar');
+
+let SESSION_ID = sessionStorage.getItem('g_sid') || ('sess-' + Math.random().toString(36).slice(2,10));
+sessionStorage.setItem('g_sid', SESSION_ID);
+
+/* ─────────────────────────────────────────
+   UI HELPERS
+───────────────────────────────────────── */
+function setStatus(msg, isErr) {
+  $status.textContent = msg;
+  $status.style.color = isErr ? '#e05555' : '#4caf80';
+}
+function syncSendBtn() { 
+    $sendBtn.disabled = isLoading || (!$input.value.trim()); 
+}
+$input.oninput = syncSendBtn; // Added listener to enable button while typing
+
+function scrollBottom() { requestAnimationFrame(() => { $msgs.scrollTop = $msgs.scrollHeight; }); }
+
+function appendMsg(role, text) {
+  const wrap = document.createElement('div');
+  wrap.className = 'msg ' + role;
+  const bubble = document.createElement('div');
+  bubble.className = 'msg-bubble';
+  bubble.textContent = text;
+  wrap.appendChild(bubble);
+  $msgs.appendChild(wrap);
+  scrollBottom();
+}
+
+function showTyping() {
+  removeTyping();
+  typingId = 'tp-' + Date.now();
+  const el = document.createElement('div');
+  el.className = 'msg assistant';
+  el.id = typingId;
+  el.innerHTML = '<div class="msg-bubble" style="padding:4px 0"><div class="typing"><span></span><span></span><span></span></div></div>';
+  $msgs.appendChild(el);
+  scrollBottom();
+}
+function removeTyping() { if(typingId) { document.getElementById(typingId)?.remove(); typingId = null; } }
+
+/* ─────────────────────────────────────────
+   EXTRACT REPLY — Improved for AI Agents
+───────────────────────────────────────── */
+function extractReply(data) {
+  if (!data) return null;
+  
+  // Handle array response from n8n
+  const d = Array.isArray(data) ? data[0] : data;
+  
+  // If it's a string, n8n sent the text directly
+  if (typeof d === 'string') return d;
+
+  // AI Agents usually return the answer in 'output' or 'text'
+  return d.output || d.text || d.response || d.message || (d.json ? d.json.output : null) || JSON.stringify(d);
+}
+
+/* ─────────────────────────────────────────
+   NETWORK LOGIC
+───────────────────────────────────────── */
+async function sendWithText(text) {
+  if (isLoading) return;
+  isLoading = true;
+  syncSendBtn();
+  appendMsg('user', text);
+  showTyping();
+  setStatus("AXIORA is thinking...", false);
+
+  try {
+    const response = await fetch(WEBHOOK, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      // Note: We send both 'chatInput' and 'message' to be safe
+      body: JSON.stringify({ 
+        chatInput: text, 
+        message: text, 
+        sessionId: SESSION_ID 
+      })
+    });
+
+    removeTyping();
+    const data = await response.json();
+
+    if (!response.ok) throw new Error("Server Error");
+
+    const reply = extractReply(data);
+    appendMsg('assistant', reply || "I processed that, but received no text. Check n8n output.");
+    setStatus("", false);
+
+  } catch(err) {
+    removeTyping();
+    setStatus("Connection Error", true);
+    appendMsg('assistant', "Sorry, I'm having trouble connecting to my brain. Please check your n8n workflow.");
+  } finally {
+    isLoading = false;
+    syncSendBtn();
+    $input.focus();
+  }
+}
+
+/* ─────────────────────────────────────────
+   EVENT LISTENERS
+───────────────────────────────────────── */
+function switchToChat() {
+  $land.classList.add('hidden');
+  $chat.classList.add('active');
+  if (!initialized) { appendMsg('assistant', GREETING); initialized = true; }
+  $input.focus();
+}
+
+$lSend.onclick = () => { const t = $lInput.value.trim(); if(t) { switchToChat(); sendWithText(t); $lInput.value = ''; } };
+$lInput.onkeydown = e => { if(e.key === 'Enter') $lSend.click(); };
+$sendBtn.onclick = () => { const t = $input.value.trim(); if(!t) return; $input.value = ''; sendWithText(t); };
+$input.onkeydown = e => { if(e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); $sendBtn.click(); } };
+</script>
+</body>
+</html>
